@@ -44,6 +44,13 @@ const DEFAULT_EXTRA_WRITE_PATHS: readonly string[] = [
 	"~/.pip",
 ];
 
+const SANDBOX_FAILURE_PATTERNS = [
+	/Read-only file system/i,
+	/Permission denied/i,
+	/EACCES/i,
+	/EROFS/i,
+];
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -125,6 +132,37 @@ function findBwrap(): string | null {
 	}
 
 	return null;
+}
+
+function detectPackageManager(): "apt" | "dnf" | "pacman" | "zypper" | "apk" | null {
+	if (existsSync("/usr/bin/apt-get") || existsSync("/usr/bin/apt")) return "apt";
+	if (existsSync("/usr/bin/dnf")) return "dnf";
+	if (existsSync("/usr/bin/yum")) return "dnf";
+	if (existsSync("/usr/bin/pacman")) return "pacman";
+	if (existsSync("/usr/bin/zypper")) return "zypper";
+	if (existsSync("/sbin/apk")) return "apk";
+	return null;
+}
+
+function getBwrapInstallHint(pm: ReturnType<typeof detectPackageManager>): string {
+	switch (pm) {
+		case "apt":
+			return "sudo apt install bubblewrap";
+		case "dnf":
+			return "sudo dnf install bubblewrap";
+		case "pacman":
+			return "sudo pacman -S bubblewrap";
+		case "zypper":
+			return "sudo zypper install bubblewrap";
+		case "apk":
+			return "sudo apk add bubblewrap";
+		default:
+			return "Install bubblewrap via your package manager (package name is usually 'bubblewrap')";
+	}
+}
+
+function looksLikeSandboxFailure(errorMessage: string): boolean {
+	return SANDBOX_FAILURE_PATTERNS.some((p) => p.test(errorMessage));
 }
 
 // ---------------------------------------------------------------------------
@@ -291,21 +329,128 @@ function createBwrapOps(bwrapPath: string, config: BwrapConfig): BashOperations 
 // ---------------------------------------------------------------------------
 
 export default function (pi: ExtensionAPI) {
+	const cwd = process.cwd();
+	let active = false;
+
+	pi.registerFlag("no-bwrap", {
+		description: "Disable bubblewrap sandboxing for bash commands",
+		type: "boolean",
+		default: false,
+	});
+
+	pi.registerCommand("bwrap", {
+		description: "Show bubblewrap sandbox status",
+		handler: async (_args, ctx) => {
+			const lines: string[] = ["Bubblewrap Sandbox Status", ""];
+
+			if (process.platform !== "linux") {
+				lines.push(`Status: unsupported OS (${process.platform})`);
+			} else {
+				const bwrapPath = findBwrap();
+				if (!bwrapPath) {
+					lines.push("Status: bwrap not found");
+					const pm = detectPackageManager();
+					lines.push(`Install: ${getBwrapInstallHint(pm)}`);
+				} else if (!active) {
+					lines.push("Status: disabled");
+				} else {
+					lines.push("Status: active");
+					lines.push(`Binary: ${bwrapPath}`);
+				}
+			}
+
+			const config = await loadConfig(ctx.cwd);
+			lines.push("");
+			lines.push(`Enabled: ${config.enabled}`);
+			lines.push(`Internet: ${config.internet}`);
+			lines.push(`Prompt on failure: ${config.promptOnFailure}`);
+			lines.push(`Extra read paths: ${config.extraReadPaths.join(", ") || "(none)"}`);
+			lines.push(`Extra write paths: ${config.extraWritePaths.join(", ") || "(none)"}`);
+
+			ctx.ui.notify(lines.join("\n"), "info");
+		},
+	});
+
 	pi.on("session_start", async (_event, ctx) => {
+		const noBwrap = pi.getFlag("no-bwrap") as boolean;
+
+		if (noBwrap) {
+			active = false;
+			ctx.ui.setStatus("bwrap", ctx.ui.theme.fg("muted", "bwrap: off"));
+			ctx.ui.notify("bwrap-bash: disabled via --no-bwrap", "info");
+			return;
+		}
+
 		const config = await loadConfig(ctx.cwd);
 
-		if (!config.enabled) return;
-		if (process.platform !== "linux") return;
+		if (!config.enabled) {
+			active = false;
+			ctx.ui.setStatus("bwrap", ctx.ui.theme.fg("muted", "bwrap: off"));
+			ctx.ui.notify("bwrap-bash: disabled in config", "info");
+			return;
+		}
+
+		if (process.platform !== "linux") {
+			active = false;
+			ctx.ui.setStatus("bwrap", ctx.ui.theme.fg("muted", "bwrap: unsupported"));
+			ctx.ui.notify(`bwrap-bash: unsupported on ${process.platform}`, "warning");
+			return;
+		}
 
 		const bwrapPath = findBwrap();
-		if (!bwrapPath) return;
+
+		if (!bwrapPath) {
+			active = false;
+			const pm = detectPackageManager();
+			const hint = getBwrapInstallHint(pm);
+			ctx.ui.setStatus("bwrap", ctx.ui.theme.fg("warning", "bwrap: missing"));
+			ctx.ui.notify(`bwrap-bash: bubblewrap not found. Install with: ${hint}`, "warning");
+			return;
+		}
 
 		const bwrapOps = createBwrapOps(bwrapPath, config);
-		const toolDef = createBashToolDefinition(ctx.cwd, {
+		const bwrapDef = createBashToolDefinition(ctx.cwd, {
 			operations: bwrapOps,
 			shellPath: config.shellPath,
 		});
+		const localDef = createBashToolDefinition(ctx.cwd, { shellPath: config.shellPath });
 
-		pi.registerTool(toolDef);
+		pi.registerTool({
+			...bwrapDef,
+			async execute(toolCallId, params, signal, onUpdate, ctx) {
+				try {
+					return await bwrapDef.execute(toolCallId, params, signal, onUpdate, ctx);
+				} catch (err) {
+					const errMsg = err instanceof Error ? err.message : String(err);
+					const isTimeout = errMsg.includes("Command timed out");
+					const isAbort = errMsg.includes("Command aborted");
+					const isSandboxFailure = !isTimeout && !isAbort && looksLikeSandboxFailure(errMsg);
+
+					if (!isSandboxFailure || !config.promptOnFailure) {
+						throw err;
+					}
+
+					if (!ctx.hasUI) {
+						throw err;
+					}
+
+					const retry = await ctx.ui.confirm(
+						"Sandbox failure",
+						`Command failed inside sandbox.\n\n${errMsg.slice(0, 200)}\n\nRetry without sandbox?`
+					);
+
+					if (retry) {
+						return localDef.execute(toolCallId, params, signal, onUpdate, ctx);
+					}
+
+					throw err;
+				}
+			},
+		});
+
+		active = true;
+		const netText = config.internet === "allow" ? "bwrap: protection on 🛜" : "bwrap: protection on";
+		ctx.ui.setStatus("bwrap", ctx.ui.theme.fg("accent", netText));
+		ctx.ui.notify(`bwrap-bash: ${netText}`, "info");
 	});
 }
