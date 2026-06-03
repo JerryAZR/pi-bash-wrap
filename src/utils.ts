@@ -1,0 +1,50 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
+import { SANDBOX_FAILURE_PATTERNS } from "./types.js";
+
+export function expandHome(p: string): string {
+	if (p.startsWith("~/")) return join(homedir(), p.slice(2));
+	if (p === "~") return homedir();
+	return p;
+}
+
+export function detectPackageManager(): "apt" | "dnf" | "pacman" | "zypper" | "apk" | null {
+	if (existsSync("/usr/bin/apt-get") || existsSync("/usr/bin/apt")) return "apt";
+	if (existsSync("/usr/bin/dnf")) return "dnf";
+	if (existsSync("/usr/bin/yum")) return "dnf";
+	if (existsSync("/usr/bin/pacman")) return "pacman";
+	if (existsSync("/usr/bin/zypper")) return "zypper";
+	if (existsSync("/sbin/apk")) return "apk";
+	return null;
+}
+
+export function getBwrapInstallHint(pm: ReturnType<typeof detectPackageManager>): string {
+	switch (pm) {
+		case "apt":
+			return "sudo apt install bubblewrap";
+		case "dnf":
+			return "sudo dnf install bubblewrap";
+		case "pacman":
+			return "sudo pacman -S bubblewrap";
+		case "zypper":
+			return "sudo zypper install bubblewrap";
+		case "apk":
+			return "sudo apk add bubblewrap";
+		default:
+			return "Install bubblewrap via your package manager (package name is usually 'bubblewrap')";
+	}
+}
+
+export function looksLikeSandboxFailure(errorMessage: string): boolean {
+	return SANDBOX_FAILURE_PATTERNS.some((p) => p.test(errorMessage));
+}
+
+/** Truncate a long command for display. Keep first 10 + last 5 lines if > 16 lines. */
+export function truncateCommandForDisplay(cmd: string): string {
+	const lines = cmd.split("\n");
+	if (lines.length <= 16) return cmd;
+	const head = lines.slice(0, 10);
+	const tail = lines.slice(-5);
+	return [...head, "  ...", ...tail].join("\n");
+}

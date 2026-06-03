@@ -1,0 +1,143 @@
+import { existsSync } from "node:fs";
+import { mkdir } from "node:fs/promises";
+import { resolve } from "node:path";
+import { spawn, spawnSync } from "node:child_process";
+import { getShellConfig, type BashOperations } from "@earendil-works/pi-coding-agent";
+import type { BwrapConfig } from "./types.js";
+import { expandHome } from "./utils.js";
+import { waitForChild, killProcessTree } from "./child-process.js";
+
+export function findBwrap(): string | null {
+	if (process.platform !== "linux") return null;
+
+	try {
+		const r = spawnSync("which", ["bwrap"], { encoding: "utf-8", timeout: 5000 });
+		if (r.status === 0 && r.stdout) {
+			const first = r.stdout.trim().split(/\r?\n/)[0];
+			if (first) return first;
+		}
+	} catch {
+		/* ignore */
+	}
+
+	for (const candidate of ["/usr/bin/bwrap", "/usr/local/bin/bwrap", "/bin/bwrap"]) {
+		if (existsSync(candidate)) return candidate;
+	}
+
+	return null;
+}
+
+export function buildBwrapArgs(
+	config: BwrapConfig,
+	cwd: string,
+	command: string
+): string[] {
+	const args: string[] = [
+		"--die-with-parent",
+		"--chdir",
+		cwd,
+		"--ro-bind",
+		"/",
+		"/",
+		"--dev",
+		"/dev",
+		"--proc",
+		"/proc",
+		"--bind",
+		cwd,
+		cwd,
+		"--tmpfs",
+		"/tmp",
+	];
+
+	for (const p of config.extraReadPaths) {
+		const rp = resolve(expandHome(p));
+		if (existsSync(rp)) args.push("--ro-bind", rp, rp);
+	}
+
+	for (const p of config.extraWritePaths) {
+		const rp = resolve(expandHome(p));
+		if (existsSync(rp)) args.push("--bind", rp, rp);
+	}
+
+	if (config.internet === "block") {
+		args.push("--unshare-net");
+	}
+
+	const shellConfig = getShellConfig(config.shellPath);
+	args.push(shellConfig.shell, ...shellConfig.args, command);
+
+	return args;
+}
+
+export function createBwrapOps(bwrapPath: string, config: BwrapConfig): BashOperations {
+	return {
+		exec: async (command, cwd, { onData, signal, timeout, env }) => {
+			if (!existsSync(cwd)) {
+				throw new Error(`Working directory does not exist: ${cwd}\nCannot execute bash commands.`);
+			}
+
+			if (signal?.aborted) {
+				throw new Error("aborted");
+			}
+
+			// Ensure extra write directories exist before building args
+			for (const p of config.extraWritePaths) {
+				const rp = resolve(expandHome(p));
+				try {
+					await mkdir(rp, { recursive: true });
+				} catch {
+					/* ignore */
+				}
+			}
+
+			const args = buildBwrapArgs(config, cwd, command);
+
+			const child = spawn(bwrapPath, args, {
+				cwd,
+				detached: true,
+				stdio: ["ignore", "pipe", "pipe"],
+				env: env ?? process.env,
+				windowsHide: true,
+			});
+
+			let timedOut = false;
+			let timeoutHandle: NodeJS.Timeout | undefined;
+
+			const onAbort = () => {
+				if (child.pid) killProcessTree(child.pid);
+			};
+
+			try {
+				if (timeout !== undefined && timeout > 0) {
+					timeoutHandle = setTimeout(() => {
+						timedOut = true;
+						if (child.pid) killProcessTree(child.pid);
+					}, timeout * 1000);
+				}
+
+				child.stdout?.on("data", onData);
+				child.stderr?.on("data", onData);
+
+				if (signal) {
+					if (signal.aborted) onAbort();
+					else signal.addEventListener("abort", onAbort, { once: true });
+				}
+
+				const exitCode = await waitForChild(child);
+
+				if (signal?.aborted) {
+					throw new Error("aborted");
+				}
+				if (timedOut) {
+					throw new Error(`timeout:${timeout}`);
+				}
+
+				return { exitCode };
+			} finally {
+				if (timeoutHandle) clearTimeout(timeoutHandle);
+				if (signal) signal.removeEventListener("abort", onAbort);
+			}
+		},
+	};
+}
