@@ -1,0 +1,7 @@
+{
+  "enabled": true,
+  "internet": "block",
+  "promptOnFailure": true,
+  "extraReadPaths": [],
+  "extraWritePaths": []
+}
