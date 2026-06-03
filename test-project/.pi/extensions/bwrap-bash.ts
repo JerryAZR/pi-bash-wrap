@@ -82,7 +82,7 @@ async function loadConfig(cwd: string): Promise<BwrapConfig> {
 
 	const merged: BwrapConfig = {
 		enabled: true,
-		internet: "block",
+		internet: "allow",
 		extraReadPaths: [],
 		extraWritePaths: [...DEFAULT_EXTRA_WRITE_PATHS],
 		promptOnFailure: true,
@@ -163,6 +163,24 @@ function getBwrapInstallHint(pm: ReturnType<typeof detectPackageManager>): strin
 
 function looksLikeSandboxFailure(errorMessage: string): boolean {
 	return SANDBOX_FAILURE_PATTERNS.some((p) => p.test(errorMessage));
+}
+
+/** Truncate a long command for display in a prompt (80 chars/line, 3 lines max). */
+function truncateCommandForDisplay(cmd: string): string {
+	const MAX_LINE = 80;
+	const MAX_LINES = 3;
+	const lines: string[] = [];
+	let remaining = cmd;
+	while (remaining.length > 0 && lines.length < MAX_LINES) {
+		const chunk = remaining.slice(0, MAX_LINE);
+		lines.push(chunk);
+		remaining = remaining.slice(MAX_LINE);
+	}
+	if (remaining.length > 0 || lines.length === MAX_LINES && cmd.length > MAX_LINE * MAX_LINES) {
+		const last = lines[lines.length - 1];
+		lines[lines.length - 1] = last.slice(0, MAX_LINE - 3) + "...";
+	}
+	return lines.join("\n  ");
 }
 
 // ---------------------------------------------------------------------------
@@ -434,9 +452,11 @@ export default function (pi: ExtensionAPI) {
 						throw err;
 					}
 
+					const cmd = params.command as string;
+					const truncatedCmd = truncateCommandForDisplay(cmd);
 					const retry = await ctx.ui.confirm(
 						"Sandbox failure",
-						`Command failed inside sandbox.\n\n${errMsg.slice(0, 200)}\n\nRetry without sandbox?`
+						`Command failed inside sandbox.\n\n  $ ${truncatedCmd}\n\n${errMsg.slice(0, 200)}\n\nRetry without sandbox?`
 					);
 
 					if (retry) {
