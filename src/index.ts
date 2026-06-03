@@ -4,9 +4,9 @@
  * Replaces the built-in bash tool so LLM-invoked commands run inside bwrap.
  * User-initiated !commands are NOT sandboxed.
  *
- * Config files (TOML, merged, project takes precedence):
- *   - ~/.pi/agent/bwrap.toml        (global)
- *   - <cwd>/.pi/bwrap.toml          (project-local)
+ * Config files (JSON, merged, project takes precedence):
+ *   - ~/.pi/agent/bwrap.json        (global)
+ *   - <cwd>/.pi/bwrap.json          (project-local)
  */
 
 import { spawn, spawnSync } from "node:child_process";
@@ -14,7 +14,6 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
-import { parse as parseToml } from "smol-toml";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
 	createBashToolDefinition,
@@ -27,7 +26,7 @@ import {
 // Constants
 // ---------------------------------------------------------------------------
 
-const CONFIG_FILENAME = "bwrap.toml";
+const CONFIG_FILENAME = "bwrap.json";
 const GLOBAL_CONFIG_DIR = "";
 const PROJECT_CONFIG_SUBDIR = ".pi";
 
@@ -86,7 +85,7 @@ async function loadConfig(cwd: string): Promise<BwrapConfig> {
 		if (!existsSync(p)) continue;
 		try {
 			const raw = await readFile(p, "utf-8");
-			const parsed = parseToml(raw) as unknown as Partial<BwrapConfig>;
+			const parsed = JSON.parse(raw) as unknown as Partial<BwrapConfig>;
 
 			if (parsed.enabled !== undefined) merged.enabled = parsed.enabled;
 			if (parsed.internet !== undefined) merged.internet = parsed.internet;
