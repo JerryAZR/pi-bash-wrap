@@ -165,12 +165,13 @@ function looksLikeSandboxFailure(errorMessage: string): boolean {
 	return SANDBOX_FAILURE_PATTERNS.some((p) => p.test(errorMessage));
 }
 
-/** Truncate a long command for display without inserting manual line breaks.
- *  Let the UI dialog handle wrapping.  */
+/** Truncate a long command for display. Keep first 10 + last 5 lines if > 16 lines. */
 function truncateCommandForDisplay(cmd: string): string {
-	const MAX_CHARS = 400;
-	if (cmd.length <= MAX_CHARS) return cmd;
-	return cmd.slice(0, MAX_CHARS - 3) + "...";
+	const lines = cmd.split("\n");
+	if (lines.length <= 16) return cmd;
+	const head = lines.slice(0, 10);
+	const tail = lines.slice(-5);
+	return [...head, "  ...", ...tail].join("\n");
 }
 
 // ---------------------------------------------------------------------------
