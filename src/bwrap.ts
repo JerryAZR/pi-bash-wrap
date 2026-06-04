@@ -68,6 +68,13 @@ export function buildBwrapArgs(
 		"/tmp",
 	];
 
+	// Hide system-wide SSH config snippets that may have broken ownership
+	// inside user namespaces (e.g., container environments where host root
+	// appears as nobody, causing SSH to reject the config).
+	if (existsSync("/etc/ssh/ssh_config.d")) {
+		args.push("--tmpfs", "/etc/ssh/ssh_config.d");
+	}
+
 	for (const p of config.extraReadPaths) {
 		const rp = resolve(expandHome(p));
 		if (existsSync(rp)) args.push("--ro-bind", rp, rp);

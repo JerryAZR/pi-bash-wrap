@@ -28,7 +28,7 @@ export async function loadConfig(cwd: string, globalConfigDir?: string): Promise
 		extraWritePaths: [...DEFAULT_EXTRA_WRITE_PATHS],
 		promptOnFailure: true,
 		writeTools: { ...DEFAULT_WRITE_TOOLS },
-		timeout: 60,
+		timeout: 600,
 	};
 
 	for (const p of paths) {

@@ -20,6 +20,7 @@ import {
 	getBwrapInstallHint,
 	isPathOutsideCwd,
 } from "./utils.js";
+import { tmpdir } from "node:os";
 
 export default function (pi: ExtensionAPI) {
 	const cwd = process.cwd();
@@ -120,6 +121,9 @@ export default function (pi: ExtensionAPI) {
 
 			const targetPath = (event.input as Record<string, unknown>)[pathArgName] as string | undefined;
 			if (!targetPath) return;
+
+			// Allow writes to system temp directory
+			if (!isPathOutsideCwd(targetPath, tmpdir())) return;
 
 			if (!isPathOutsideCwd(targetPath, toolCtx.cwd)) return;
 

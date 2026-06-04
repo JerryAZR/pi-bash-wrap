@@ -74,7 +74,7 @@ Config files are JSON. Two levels, merged; project-local wins:
     "write": "path",
     "edit": "path"
   },
-  "timeout": 60
+  "timeout": 600
 }
 ```
 
@@ -87,7 +87,7 @@ Config files are JSON. Two levels, merged; project-local wins:
 | `shellPath` | `string` | auto-detected | Shell to run commands inside the sandbox |
 | `promptOnFailure` | `boolean` | `true` | Prompt to retry without sandbox on filesystem errors |
 | `writeTools` | `object` | `{"write": "path", "edit": "path"}` | Map of tool name → path parameter name to restrict |
-| `timeout` | `number` | `60` | Default timeout in seconds for sandboxed commands. Agents can request a longer timeout per command. |
+| `timeout` | `number` | `600` | Default timeout in seconds for sandboxed commands. Agents can request a longer timeout per command. |
 
 Paths support `~` expansion (e.g. `"~/custom-cache"`).
 

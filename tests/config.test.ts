@@ -29,7 +29,7 @@ describe("loadConfig", () => {
 		assert.equal(cfg.enabled, true);
 		assert.equal(cfg.internet, "allow");
 		assert.equal(cfg.promptOnFailure, true);
-		assert.equal(cfg.timeout, 60); // default
+		assert.equal(cfg.timeout, 600); // default
 		assert.deepEqual(cfg.extraReadPaths, []);
 		assert.deepEqual(cfg.extraWritePaths, [...DEFAULT_EXTRA_WRITE_PATHS]);
 	});
