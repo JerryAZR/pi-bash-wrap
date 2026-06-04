@@ -1,4 +1,4 @@
-# pi-bwrap-bash
+# pi-bash-wrap
 
 Sandbox [pi](https://github.com/earendil-works/pi-coding-agent) bash commands with [bubblewrap](https://github.com/containers/bubblewrap). LLM-invoked commands run inside a minimal filesystem sandbox. User-initiated `!commands` are never sandboxed.
 
@@ -202,6 +202,11 @@ Bubblewrap processes arguments sequentially; later mounts override earlier ones.
 --bind <cwd> <cwd> # overrides cwd
 --tmpfs /tmp       # overrides /tmp
 ```
+
+## Limitations
+
+- **Does not prevent reading secrets.** The `read` tool and bash `cat` are unrestricted — the sandbox focuses on preventing accidental or malicious writes outside the project.
+- **Requires unprivileged user namespaces.** If your kernel or container runtime blocks user namespaces (common in hardened environments, some CI runners, or Docker without `--privileged`), bubblewrap cannot create its sandbox. The extension detects this at startup and shows `bwrap: incompatible`.
 
 ## Development
 
