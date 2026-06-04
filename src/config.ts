@@ -10,6 +10,11 @@ import {
 	DEFAULT_EXTRA_WRITE_PATHS,
 } from "./types.js";
 
+const DEFAULT_WRITE_TOOLS: Record<string, string> = {
+	write: "path",
+	edit: "path",
+};
+
 export async function loadConfig(cwd: string, globalConfigDir?: string): Promise<BwrapConfig> {
 	const paths = [
 		join(globalConfigDir ?? getAgentDir(), GLOBAL_CONFIG_DIR, CONFIG_FILENAME),
@@ -22,6 +27,7 @@ export async function loadConfig(cwd: string, globalConfigDir?: string): Promise
 		extraReadPaths: [],
 		extraWritePaths: [...DEFAULT_EXTRA_WRITE_PATHS],
 		promptOnFailure: true,
+		writeTools: { ...DEFAULT_WRITE_TOOLS },
 	};
 
 	for (const p of paths) {
@@ -37,6 +43,9 @@ export async function loadConfig(cwd: string, globalConfigDir?: string): Promise
 			if (parsed.extraReadPaths) merged.extraReadPaths = parsed.extraReadPaths;
 			if (parsed.extraWritePaths) {
 				merged.extraWritePaths = [...merged.extraWritePaths, ...parsed.extraWritePaths];
+			}
+			if (parsed.writeTools) {
+				merged.writeTools = { ...merged.writeTools, ...parsed.writeTools };
 			}
 		} catch {
 			/* ignore malformed config */

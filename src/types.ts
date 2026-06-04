@@ -23,6 +23,10 @@ export const SANDBOX_FAILURE_PATTERNS = [
 	/EROFS/i,
 ];
 
+export interface WriteToolMap {
+	[toolName: string]: string; // value = parameter name containing the path
+}
+
 export interface BwrapConfig {
 	enabled: boolean;
 	internet: "allow" | "block";
@@ -30,4 +34,5 @@ export interface BwrapConfig {
 	extraWritePaths: string[];
 	shellPath?: string;
 	promptOnFailure: boolean;
+	writeTools: WriteToolMap;
 }

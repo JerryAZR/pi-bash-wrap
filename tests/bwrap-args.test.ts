@@ -26,6 +26,7 @@ describe("buildBwrapArgs", () => {
 			extraReadPaths: [],
 			extraWritePaths: [],
 			promptOnFailure: true,
+			writeTools: { write: "path", edit: "path" },
 			...overrides,
 		};
 	}

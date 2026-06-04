@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { SANDBOX_FAILURE_PATTERNS } from "./types.js";
 
@@ -47,4 +47,13 @@ export function truncateCommandForDisplay(cmd: string): string {
 	const head = lines.slice(0, 10);
 	const tail = lines.slice(-5);
 	return [...head, "  ...", ...tail].join("\n");
+}
+
+/** Check whether a target path lies outside cwd (after resolving both). */
+export function isPathOutsideCwd(targetPath: string, cwd: string): boolean {
+	const resolvedTarget = resolve(cwd, targetPath);
+	const resolvedCwd = resolve(cwd);
+	// Ensure we match directory boundaries (e.g. /foo vs /foobar)
+	const prefix = resolvedCwd.endsWith("/") ? resolvedCwd : resolvedCwd + "/";
+	return resolvedTarget !== resolvedCwd && !resolvedTarget.startsWith(prefix);
 }

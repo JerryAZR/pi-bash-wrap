@@ -102,4 +102,38 @@ describe("loadConfig", () => {
 		assert.equal(cfg.shellPath, "/bin/zsh");
 		assert.equal(cfg.promptOnFailure, false);
 	});
+
+	it("has default writeTools", async () => {
+		const freshProject = await mkdtemp(join(tmpdir(), "bwrap-fresh-"));
+		const cfg = await loadConfig(freshProject, globalDir);
+		await rm(freshProject, { recursive: true, force: true });
+
+		assert.deepEqual(cfg.writeTools, { write: "path", edit: "path" });
+	});
+
+	it("merges writeTools from config", async () => {
+		await writeFile(
+			join(globalDir, "bwrap.json"),
+			JSON.stringify({ writeTools: { write: "filepath", custom: "target" } })
+		);
+		const cfg = await loadConfig(projectDir, globalDir);
+		assert.equal(cfg.writeTools.write, "filepath");
+		assert.equal(cfg.writeTools.edit, "path"); // default preserved
+		assert.equal(cfg.writeTools.custom, "target");
+	});
+
+	it("project writeTools override global", async () => {
+		await writeFile(
+			join(globalDir, "bwrap.json"),
+			JSON.stringify({ writeTools: { write: "globalPath" } })
+		);
+		await mkdir(join(projectDir, ".pi"), { recursive: true });
+		await writeFile(
+			join(projectDir, ".pi", "bwrap.json"),
+			JSON.stringify({ writeTools: { write: "projectPath" } })
+		);
+		const cfg = await loadConfig(projectDir, globalDir);
+		assert.equal(cfg.writeTools.write, "projectPath");
+		assert.equal(cfg.writeTools.edit, "path"); // default preserved
+	});
 });

@@ -6,6 +6,7 @@ import {
 	getBwrapInstallHint,
 	looksLikeSandboxFailure,
 	truncateCommandForDisplay,
+	isPathOutsideCwd,
 } from "../src/utils.js";
 import { homedir } from "node:os";
 
@@ -110,5 +111,32 @@ describe("truncateCommandForDisplay", () => {
 		assert.equal(resultLines[10], "  ...");
 		assert.equal(resultLines[11], "line 15");
 		assert.equal(resultLines[15], "line 19");
+	});
+});
+
+describe("isPathOutsideCwd", () => {
+	it("returns false for path inside cwd", () => {
+		assert.equal(isPathOutsideCwd("/home/user/project/src/index.ts", "/home/user/project"), false);
+	});
+
+	it("returns false for cwd itself", () => {
+		assert.equal(isPathOutsideCwd("/home/user/project", "/home/user/project"), false);
+	});
+
+	it("returns true for path outside cwd", () => {
+		assert.equal(isPathOutsideCwd("/home/user/other/file.txt", "/home/user/project"), true);
+	});
+
+	it("returns true for sibling path", () => {
+		assert.equal(isPathOutsideCwd("/home/user/other", "/home/user/project"), true);
+	});
+
+	it("handles relative paths", () => {
+		assert.equal(isPathOutsideCwd("../other/file.txt", "/home/user/project"), true);
+		assert.equal(isPathOutsideCwd("./src/file.ts", "/home/user/project"), false);
+	});
+
+	it("does not falsely match prefix", () => {
+		assert.equal(isPathOutsideCwd("/home/user/projects", "/home/user/project"), true);
 	});
 });

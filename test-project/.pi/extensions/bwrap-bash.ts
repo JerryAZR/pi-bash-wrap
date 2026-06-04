@@ -13,7 +13,13 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createBashToolDefinition, getShellConfig } from "@earendil-works/pi-coding-agent";
 import { loadConfig } from "./config.js";
 import { findBwrap, createBwrapOps } from "./bwrap.js";
-import { looksLikeSandboxFailure, truncateCommandForDisplay, detectPackageManager, getBwrapInstallHint } from "./utils.js";
+import {
+	looksLikeSandboxFailure,
+	truncateCommandForDisplay,
+	detectPackageManager,
+	getBwrapInstallHint,
+	isPathOutsideCwd,
+} from "./utils.js";
 
 export default function (pi: ExtensionAPI) {
 	const cwd = process.cwd();
@@ -53,6 +59,7 @@ export default function (pi: ExtensionAPI) {
 			lines.push(`Prompt on failure: ${config.promptOnFailure}`);
 			lines.push(`Extra read paths: ${config.extraReadPaths.join(", ") || "(none)"}`);
 			lines.push(`Extra write paths: ${config.extraWritePaths.join(", ") || "(none)"}`);
+			lines.push(`Write tools: ${Object.entries(config.writeTools).map(([k, v]) => `${k}(${v})`).join(", ") || "(none)"}`);
 
 			ctx.ui.notify(lines.join("\n"), "info");
 		},
@@ -94,6 +101,30 @@ export default function (pi: ExtensionAPI) {
 			ctx.ui.notify(`bwrap-bash: bubblewrap not found. Install with: ${hint}`, "warning");
 			return;
 		}
+
+		// Register write-tool gate
+		pi.on("tool_call", async (event, toolCtx) => {
+			const pathArgName = config.writeTools[event.toolName];
+			if (!pathArgName) return;
+
+			const targetPath = (event.input as Record<string, unknown>)[pathArgName] as string | undefined;
+			if (!targetPath) return;
+
+			if (!isPathOutsideCwd(targetPath, toolCtx.cwd)) return;
+
+			if (!config.promptOnFailure || !toolCtx.hasUI) {
+				return { block: true, reason: `Write outside working directory blocked: ${targetPath}` };
+			}
+
+			const ok = await toolCtx.ui.confirm(
+				"Write outside cwd",
+				`Tool "${event.toolName}" wants to write to:\n${targetPath}\n\nAllow?`
+			);
+
+			if (!ok) {
+				return { block: true, reason: `Write outside working directory denied by user: ${targetPath}` };
+			}
+		});
 
 		const bwrapOps = createBwrapOps(bwrapPath, config);
 		const bwrapDef = createBashToolDefinition(ctx.cwd, {
