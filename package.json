@@ -1,5 +1,5 @@
 {
-  "name": "pi-bwrap-bash",
+  "name": "@jerryan/pi-bash-wrap",
   "version": "0.1.0",
   "description": "Sandbox pi bash commands with bubblewrap",
   "keywords": [
@@ -8,6 +8,19 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JerryAZR/pi-bash-wrap.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JerryAZR/pi-bash-wrap/issues"
+  },
+  "homepage": "https://github.com/JerryAZR/pi-bash-wrap#readme",
   "scripts": {
     "build": "tsc",
     "test": "tsc -p tsconfig.tests.json && node --test dist-tests/tests/*.test.js"

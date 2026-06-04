@@ -69,7 +69,11 @@ Config files are JSON. Two levels, merged; project-local wins:
   "extraReadPaths": [],
   "extraWritePaths": [],
   "shellPath": "/bin/bash",
-  "promptOnFailure": true
+  "promptOnFailure": true,
+  "writeTools": {
+    "write": "path",
+    "edit": "path"
+  }
 }
 ```
 
@@ -81,6 +85,7 @@ Config files are JSON. Two levels, merged; project-local wins:
 | `extraWritePaths` | `string[]` | `[]` | Additional paths to mount read-write (created if missing) |
 | `shellPath` | `string` | auto-detected | Shell to run commands inside the sandbox |
 | `promptOnFailure` | `boolean` | `true` | Prompt to retry without sandbox on filesystem errors |
+| `writeTools` | `object` | `{"write": "path", "edit": "path"}` | Map of tool name → path parameter name to restrict |
 
 Paths support `~` expansion (e.g. `"~/custom-cache"`).
 
@@ -116,6 +121,7 @@ A footer indicator shows the sandbox state:
 | Active, network blocked | `bwrap: protection on` |
 | Disabled (`--no-bwrap` or config) | `bwrap: off` |
 | bwrap binary missing | `bwrap: missing` |
+| bwrap installed but user namespaces blocked | `bwrap: incompatible` |
 | Unsupported OS | `bwrap: unsupported` |
 
 ## Commands and flags
@@ -131,6 +137,37 @@ Disable sandboxing for the session:
 ```bash
 pi --no-bwrap
 ```
+
+## Write tool restrictions
+
+The extension also gates `write` and `edit` tool calls. If a tool tries to write outside the working directory, the user is prompted to allow or deny it:
+
+```
+Write outside cwd
+
+Tool "write" wants to write to:
+/etc/passwd
+
+Allow?
+→ Yes
+  No
+```
+
+Configure which tools to gate and which parameter holds the path via `writeTools`:
+
+```json
+{
+  "writeTools": {
+    "write": "path",
+    "edit": "path",
+    "my_custom_tool": "target"
+  }
+}
+```
+
+- Key = tool name to intercept
+- Value = parameter name containing the file path
+- Set `"promptOnFailure": false` to silently block instead of prompting
 
 ## Sandbox failure prompt
 
