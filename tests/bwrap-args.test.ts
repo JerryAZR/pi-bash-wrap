@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { buildBwrapArgs } from "../src/bwrap.js";
+import { buildBwrapArgs, findBwrap, testBwrap } from "../src/bwrap.js";
 import type { BwrapConfig } from "../src/types.js";
 
 describe("buildBwrapArgs", () => {
@@ -132,5 +132,20 @@ describe("buildBwrapArgs", () => {
 		assert.notEqual(shellIndex, -1, "custom shell path should appear in args");
 		assert.equal(args[shellIndex + 1], "-c");
 		assert.equal(args[shellIndex + 2], "echo hello");
+	});
+});
+
+describe("testBwrap", () => {
+	it("returns true when bwrap works", () => {
+		const bwrapPath = findBwrap();
+		if (!bwrapPath) {
+			// Skip if bwrap not installed
+			return;
+		}
+		assert.equal(testBwrap(bwrapPath), true);
+	});
+
+	it("returns false for a nonexistent binary", () => {
+		assert.equal(testBwrap("/nonexistent/bwrap"), false);
 	});
 });

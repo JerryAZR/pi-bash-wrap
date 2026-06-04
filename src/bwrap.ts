@@ -27,6 +27,24 @@ export function findBwrap(): string | null {
 	return null;
 }
 
+/** Run a harmless bwrap command to verify namespace/mount support. */
+export function testBwrap(bwrapPath: string): boolean {
+	try {
+		const r = spawnSync(bwrapPath, [
+			"--die-with-parent",
+			"--ro-bind", "/", "/",
+			"echo", "bwrap-compat-test",
+		], {
+			encoding: "utf-8",
+			timeout: 5000,
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+		return r.status === 0;
+	} catch {
+		return false;
+	}
+}
+
 export function buildBwrapArgs(
 	config: BwrapConfig,
 	cwd: string,

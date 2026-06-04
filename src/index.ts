@@ -12,7 +12,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createBashToolDefinition, getShellConfig } from "@earendil-works/pi-coding-agent";
 import { loadConfig } from "./config.js";
-import { findBwrap, createBwrapOps } from "./bwrap.js";
+import { findBwrap, testBwrap, createBwrapOps } from "./bwrap.js";
 import {
 	looksLikeSandboxFailure,
 	truncateCommandForDisplay,
@@ -44,6 +44,9 @@ export default function (pi: ExtensionAPI) {
 					lines.push("Status: bwrap not found");
 					const pm = detectPackageManager();
 					lines.push(`Install: ${getBwrapInstallHint(pm)}`);
+				} else if (!testBwrap(bwrapPath)) {
+					lines.push("Status: incompatible (user namespaces blocked)");
+					lines.push(`Binary: ${bwrapPath}`);
 				} else if (!active) {
 					lines.push("Status: disabled");
 				} else {
@@ -99,6 +102,13 @@ export default function (pi: ExtensionAPI) {
 			const hint = getBwrapInstallHint(pm);
 			ctx.ui.setStatus("bwrap", ctx.ui.theme.fg("warning", "bwrap: missing"));
 			ctx.ui.notify(`bwrap-bash: bubblewrap not found. Install with: ${hint}`, "warning");
+			return;
+		}
+
+		if (!testBwrap(bwrapPath)) {
+			active = false;
+			ctx.ui.setStatus("bwrap", ctx.ui.theme.fg("warning", "bwrap: incompatible"));
+			ctx.ui.notify("bwrap-bash: bubblewrap installed but user namespaces are blocked. Sandbox disabled.", "warning");
 			return;
 		}
 
