@@ -28,6 +28,7 @@ export async function loadConfig(cwd: string, globalConfigDir?: string): Promise
 		extraWritePaths: [...DEFAULT_EXTRA_WRITE_PATHS],
 		promptOnFailure: true,
 		writeTools: { ...DEFAULT_WRITE_TOOLS },
+		timeout: 60,
 	};
 
 	for (const p of paths) {
@@ -40,6 +41,7 @@ export async function loadConfig(cwd: string, globalConfigDir?: string): Promise
 			if (parsed.internet !== undefined) merged.internet = parsed.internet;
 			if (parsed.shellPath !== undefined) merged.shellPath = parsed.shellPath;
 			if (parsed.promptOnFailure !== undefined) merged.promptOnFailure = parsed.promptOnFailure;
+			if (parsed.timeout !== undefined) merged.timeout = parsed.timeout;
 			if (parsed.extraReadPaths) merged.extraReadPaths = parsed.extraReadPaths;
 			if (parsed.extraWritePaths) {
 				merged.extraWritePaths = [...merged.extraWritePaths, ...parsed.extraWritePaths];

@@ -27,6 +27,7 @@ describe("buildBwrapArgs", () => {
 			extraWritePaths: [],
 			promptOnFailure: true,
 			writeTools: { write: "path", edit: "path" },
+			timeout: 60,
 			...overrides,
 		};
 	}

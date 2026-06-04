@@ -127,11 +127,12 @@ export function createBwrapOps(bwrapPath: string, config: BwrapConfig): BashOper
 			};
 
 			try {
-				if (timeout !== undefined && timeout > 0) {
+				const effectiveTimeout = timeout ?? config.timeout ?? 0;
+				if (effectiveTimeout > 0) {
 					timeoutHandle = setTimeout(() => {
 						timedOut = true;
 						if (child.pid) killProcessTree(child.pid);
-					}, timeout * 1000);
+					}, effectiveTimeout * 1000);
 				}
 
 				child.stdout?.on("data", onData);
@@ -148,7 +149,7 @@ export function createBwrapOps(bwrapPath: string, config: BwrapConfig): BashOper
 					throw new Error("aborted");
 				}
 				if (timedOut) {
-					throw new Error(`timeout:${timeout}`);
+					throw new Error(`timeout:${effectiveTimeout}`);
 				}
 
 				return { exitCode };

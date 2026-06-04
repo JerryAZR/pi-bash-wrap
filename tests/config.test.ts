@@ -29,6 +29,7 @@ describe("loadConfig", () => {
 		assert.equal(cfg.enabled, true);
 		assert.equal(cfg.internet, "allow");
 		assert.equal(cfg.promptOnFailure, true);
+		assert.equal(cfg.timeout, 60); // default
 		assert.deepEqual(cfg.extraReadPaths, []);
 		assert.deepEqual(cfg.extraWritePaths, [...DEFAULT_EXTRA_WRITE_PATHS]);
 	});
@@ -92,6 +93,7 @@ describe("loadConfig", () => {
 				extraWritePaths: ["/var/tmp"],
 				shellPath: "/bin/zsh",
 				promptOnFailure: false,
+				timeout: 120,
 			})
 		);
 		const cfg = await loadConfig(projectDir, globalDir);
@@ -101,6 +103,7 @@ describe("loadConfig", () => {
 		assert.ok(cfg.extraWritePaths.includes("/var/tmp"));
 		assert.equal(cfg.shellPath, "/bin/zsh");
 		assert.equal(cfg.promptOnFailure, false);
+		assert.equal(cfg.timeout, 120);
 	});
 
 	it("has default writeTools", async () => {

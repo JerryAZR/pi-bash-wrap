@@ -63,6 +63,7 @@ export default function (pi: ExtensionAPI) {
 			lines.push(`Extra read paths: ${config.extraReadPaths.join(", ") || "(none)"}`);
 			lines.push(`Extra write paths: ${config.extraWritePaths.join(", ") || "(none)"}`);
 			lines.push(`Write tools: ${Object.entries(config.writeTools).map(([k, v]) => `${k}(${v})`).join(", ") || "(none)"}`);
+			lines.push(`Timeout: ${config.timeout}s`);
 
 			ctx.ui.notify(lines.join("\n"), "info");
 		},

@@ -35,4 +35,5 @@ export interface BwrapConfig {
 	shellPath?: string;
 	promptOnFailure: boolean;
 	writeTools: WriteToolMap;
+	timeout?: number;
 }
