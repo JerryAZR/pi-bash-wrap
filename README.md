@@ -85,7 +85,7 @@ Config files are JSON. Two levels, merged; project-local wins:
 | `extraReadPaths` | `string[]` | `[]` | Additional paths to mount read-only (must exist) |
 | `extraWritePaths` | `string[]` | `[]` | Additional paths to mount read-write (created if missing) |
 | `shellPath` | `string` | auto-detected | Shell to run commands inside the sandbox |
-| `promptOnFailure` | `boolean` | `true` | Prompt to retry without sandbox on filesystem errors |
+| `promptOnFailure` | `boolean` | `true` | Prompt user for write-tool gates and unsandboxed execution confirmation |
 | `writeTools` | `object` | `{"write": "path", "edit": "path"}` | Map of tool name → path parameter name to restrict |
 | `timeout` | `number` | `600` | Default timeout in seconds for sandboxed commands. Agents can request a longer timeout per command. |
 
@@ -171,26 +171,16 @@ Configure which tools to gate and which parameter holds the path via `writeTools
 - Value = parameter name containing the file path
 - Set `"promptOnFailure": false` to silently block instead of prompting
 
-## Sandbox failure prompt
+## Unsandboxed commands
 
-When a sandboxed command fails with a filesystem error (`Read-only file system`, `Permission denied`, `EACCES`, `EROFS`), the extension can prompt you to retry without the sandbox:
+The bash tool accepts an optional `unsandboxed: true` parameter to run a command outside the sandbox. Use it when:
 
-```
-Sandbox failure
+- You know the command requires unsandboxed access (e.g., `podman`, `docker`, `buildah`, `nerdctl`)
+- A previous sandboxed run failed with filesystem errors like `Read-only file system` or `Permission denied`
 
-$ touch /outside-cwd/file
+Do NOT use `unsandboxed` for ordinary commands — the sandbox is the default for a reason.
 
-OSError: [Errno 30] Read-only file system: '/outside-cwd/file'
-
-Retry without sandbox?
-→ Yes
-  No
-```
-
-- **Timeouts and aborts** are never retried — they are returned as errors immediately.
-- **Non-interactive mode** (no UI) skips the prompt and returns the error.
-- Set `"promptOnFailure": false` in config to disable prompting entirely.
-
+If `promptOnFailure` is enabled, the user is prompted for confirmation before the unsandboxed execution proceeds.
 ## Mount order
 
 Bubblewrap processes arguments sequentially; later mounts override earlier ones. The extension uses this order:

@@ -5,6 +5,9 @@
 ### Removed
 - **Automatic sandbox-failure prompt**: Removed the regex-based detection (`looksLikeSandboxFailure`) and the automatic "Retry without sandbox?" prompt that fired after sandbox errors. This detection was unreliable (e.g., false positives on `npm test` failures). The agent is the better judge — it can now use the explicit `unsandboxed: true` parameter when it determines a command needs to run outside the sandbox.
 
+### Fixed
+- **README updated**: Removed stale "Sandbox failure prompt" section (documented a removed feature) and added "Unsandboxed commands" documentation. Updated `promptOnFailure` option description.
+
 ## 0.1.2
 
 ### Added
