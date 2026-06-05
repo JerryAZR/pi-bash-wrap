@@ -154,10 +154,9 @@ export default function (pi: ExtensionAPI) {
 			unsandboxed: Type.Optional(Type.Boolean({
 				description:
 					"If true, run this command outside the sandbox. " +
-					"Use ONLY when necessary — for commands that require container runtime access (podman, docker, buildah, nerdctl), nested virtualization, " +
-					"or system-level operations that you know will fail inside the sandbox. " +
-					"Do NOT use for ordinary file operations, package installs, or build commands. " +
-					"The user may be prompted for confirmation.",
+					"Use when you know the command requires unsandboxed access (e.g., podman, docker, buildah, nerdctl) " +
+					"or when retrying a command that previously failed with sandbox errors like 'Read-only file system'. " +
+					"Do NOT use for ordinary file operations, package installs, or build commands.",
 				default: false,
 			})),
 		});
@@ -167,15 +166,10 @@ export default function (pi: ExtensionAPI) {
 			parameters: extendedSchema,
 			description:
 				(bwrapDef.description ?? "") +
-				"\n\nIMPORTANT: Commands run inside a sandbox by default. " +
-				"If you are running a container tool (podman, docker, buildah, nerdctl) or any command that you know requires unsandboxed access, " +
-				"set `unsandboxed: true` from the start. Do not run it first and wait for it to fail. " +
+				"\n\nThis tool runs commands inside a sandbox by default. " +
+				"Set `unsandboxed: true` when running container tools (podman, docker, buildah, nerdctl) " +
+				"or when retrying a command that failed with sandbox errors like 'Read-only file system' or 'Permission denied'. " +
 				"Do NOT use `unsandboxed` for ordinary commands.",
-			promptGuidelines: [
-				"Only set `unsandboxed: true` for container tools (podman, docker, buildah, nerdctl) or commands you know require system-level access.",
-				"Never use `unsandboxed` for routine file operations, builds, or package installs.",
-				"If a command fails with sandbox errors like 'Read-only file system' or 'Permission denied', retry with `unsandboxed: true`.",
-			],
 			async execute(toolCallId, params, signal, onUpdate, ctx) {
 				return executeWithFallback(
 					toolCallId,
