@@ -10,12 +10,12 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { createBashToolDefinition, getShellConfig } from "@earendil-works/pi-coding-agent";
+import { createBashToolDefinition } from "@earendil-works/pi-coding-agent";
+import { Type } from "typebox";
 import { loadConfig } from "./config.js";
 import { findBwrap, testBwrap, createBwrapOps } from "./bwrap.js";
+import { executeWithFallback } from "./execute.js";
 import {
-	looksLikeSandboxFailure,
-	truncateCommandForDisplay,
 	detectPackageManager,
 	getBwrapInstallHint,
 	isPathOutsideCwd,
@@ -148,38 +148,35 @@ export default function (pi: ExtensionAPI) {
 		});
 		const localDef = createBashToolDefinition(ctx.cwd, { shellPath: config.shellPath });
 
+		const extendedSchema = Type.Object({
+			command: Type.String(),
+			timeout: Type.Optional(Type.Number()),
+			unsandboxed: Type.Optional(Type.Boolean({
+				description:
+					"If true, run this command outside the sandbox. " +
+					"Use when the command fails due to sandbox restrictions (e.g., container tools like podman/docker). " +
+					"The user will be prompted for confirmation.",
+				default: false,
+			})),
+		});
+
 		pi.registerTool({
 			...bwrapDef,
+			parameters: extendedSchema,
+			description:
+				(bwrapDef.description ?? "") +
+				"\n\nOptional: set `unsandboxed: true` to run outside the sandbox when a command fails due to sandbox restrictions.",
 			async execute(toolCallId, params, signal, onUpdate, ctx) {
-				try {
-					return await bwrapDef.execute(toolCallId, params, signal, onUpdate, ctx);
-				} catch (err) {
-					const errMsg = err instanceof Error ? err.message : String(err);
-					const isTimeout = errMsg.includes("Command timed out");
-					const isAbort = errMsg.includes("Command aborted");
-					const isSandboxFailure = !isTimeout && !isAbort && looksLikeSandboxFailure(errMsg);
-
-					if (!isSandboxFailure || !config.promptOnFailure) {
-						throw err;
-					}
-
-					if (!ctx.hasUI) {
-						throw err;
-					}
-
-					const cmd = params.command as string;
-					const truncatedCmd = truncateCommandForDisplay(cmd);
-					const retry = await ctx.ui.confirm(
-						"Sandbox failure",
-						`Command failed inside sandbox.\n\n$ ${truncatedCmd}\n\n${errMsg.slice(0, 200)}\n\nRetry without sandbox?`
-					);
-
-					if (retry) {
-						return localDef.execute(toolCallId, params, signal, onUpdate, ctx);
-					}
-
-					throw err;
-				}
+				return executeWithFallback(
+					toolCallId,
+					params as { command: string; timeout?: number; unsandboxed?: boolean },
+					signal,
+					onUpdate,
+					{ hasUI: ctx.hasUI, ui: ctx.ui },
+					config,
+					bwrapDef.execute.bind(bwrapDef),
+					localDef.execute.bind(localDef),
+				);
 			},
 		});
 

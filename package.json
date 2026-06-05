@@ -1,6 +1,6 @@
 {
   "name": "@jerryan/pi-bash-wrap",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Sandbox pi bash commands with bubblewrap",
   "keywords": [
     "pi-package"

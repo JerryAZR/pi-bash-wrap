@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2
+
+### Added
+- **`unsandboxed` parameter**: The bash tool now accepts an optional `unsandboxed: true` parameter. When a command fails due to sandbox restrictions (e.g., `podman`, `docker`), the agent can retry with `unsandboxed: true` to run outside the sandbox. If `promptOnFailure` is enabled, the user is prompted for confirmation before the unsandboxed execution proceeds.
+- **Guideline in tool description**: The bash tool description now includes a note about `unsandboxed: true` so the LLM learns to use it when sandbox errors occur.
+
 ## 0.1.1
 
 ### Fixed
