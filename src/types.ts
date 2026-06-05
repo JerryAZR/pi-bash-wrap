@@ -16,12 +16,6 @@ export const DEFAULT_EXTRA_WRITE_PATHS: readonly string[] = [
 	"~/.pip",
 ];
 
-export const SANDBOX_FAILURE_PATTERNS = [
-	/Read-only file system/i,
-	/Permission denied/i,
-	/EACCES/i,
-	/EROFS/i,
-];
 
 export interface WriteToolMap {
 	[toolName: string]: string; // value = parameter name containing the path

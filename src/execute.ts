@@ -1,4 +1,4 @@
-import { looksLikeSandboxFailure, truncateCommandForDisplay } from "./utils.js";
+import { truncateCommandForDisplay } from "./utils.js";
 import type { BwrapConfig } from "./types.js";
 
 export interface ToolExecuteContext {
@@ -17,13 +17,10 @@ export type ExecuteFn = (
 ) => Promise<any>;
 
 /**
- * Execute a bash command with bubblewrap sandboxing and fallback handling.
+ * Execute a bash command with bubblewrap sandboxing.
  *
  * If `params.unsandboxed` is true, runs via `localExecute` (outside sandbox)
- * after optionally prompting the user.
- *
- * Otherwise runs via `sandboxedExecute`, and if it fails with a sandbox-specific
- * error, prompts the user to retry without the sandbox.
+ * after optionally prompting the user. Otherwise runs via `sandboxedExecute`.
  */
 export async function executeWithFallback(
 	toolCallId: string,
@@ -51,32 +48,5 @@ export async function executeWithFallback(
 	}
 
 	// Normal sandboxed path
-	try {
-		return await sandboxedExecute(toolCallId, params, signal, onUpdate, ctx);
-	} catch (err) {
-		const errMsg = err instanceof Error ? err.message : String(err);
-		const isTimeout = errMsg.includes("Command timed out");
-		const isAbort = errMsg.includes("Command aborted");
-		const isSandboxFailure = !isTimeout && !isAbort && looksLikeSandboxFailure(errMsg);
-
-		if (!isSandboxFailure || !config.promptOnFailure) {
-			throw err;
-		}
-
-		if (!ctx.hasUI) {
-			throw err;
-		}
-
-		const truncatedCmd = truncateCommandForDisplay(params.command);
-		const retry = await ctx.ui.confirm(
-			"Sandbox failure",
-			`Command failed inside sandbox.\n\n$ ${truncatedCmd}\n\n${errMsg.slice(0, 200)}\n\nRetry without sandbox?`,
-		);
-
-		if (retry) {
-			return localExecute(toolCallId, params, signal, onUpdate, ctx);
-		}
-
-		throw err;
-	}
+	return sandboxedExecute(toolCallId, params, signal, onUpdate, ctx);
 }

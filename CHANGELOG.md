@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3
+
+### Removed
+- **Automatic sandbox-failure prompt**: Removed the regex-based detection (`looksLikeSandboxFailure`) and the automatic "Retry without sandbox?" prompt that fired after sandbox errors. This detection was unreliable (e.g., false positives on `npm test` failures). The agent is the better judge — it can now use the explicit `unsandboxed: true` parameter when it determines a command needs to run outside the sandbox.
+
 ## 0.1.2
 
 ### Added
@@ -24,6 +29,5 @@
 - `/bwrap` status command.
 - `--no-bwrap` CLI flag to disable for a session.
 - Network blocking via `--unshare-net` (configurable).
-- Sandbox-failure prompt with retry-without-sandbox option.
 - Write/edit tool path gating (ask-if-outside-cwd).
 - Bwrap compatibility smoke-test at startup (detects blocked user namespaces).

@@ -4,7 +4,6 @@ import {
 	expandHome,
 	detectPackageManager,
 	getBwrapInstallHint,
-	looksLikeSandboxFailure,
 	truncateCommandForDisplay,
 	isPathOutsideCwd,
 } from "../src/utils.js";
@@ -62,34 +61,6 @@ describe("getBwrapInstallHint", () => {
 	});
 });
 
-describe("looksLikeSandboxFailure", () => {
-	it("matches Read-only file system", () => {
-		assert.equal(looksLikeSandboxFailure("Read-only file system"), true);
-	});
-
-	it("matches Permission denied", () => {
-		assert.equal(looksLikeSandboxFailure("Permission denied"), true);
-	});
-
-	it("matches EACCES", () => {
-		assert.equal(looksLikeSandboxFailure("EACCES: something"), true);
-	});
-
-	it("matches EROFS", () => {
-		assert.equal(looksLikeSandboxFailure("EROFS: something"), true);
-	});
-
-	it("is case-insensitive", () => {
-		assert.equal(looksLikeSandboxFailure("read-only FILE SYSTEM"), true);
-		assert.equal(looksLikeSandboxFailure("PERMISSION DENIED"), true);
-	});
-
-	it("returns false for unrelated errors", () => {
-		assert.equal(looksLikeSandboxFailure("Command not found"), false);
-		assert.equal(looksLikeSandboxFailure("Segmentation fault"), false);
-		assert.equal(looksLikeSandboxFailure(""), false);
-	});
-});
 
 describe("truncateCommandForDisplay", () => {
 	it("returns short commands unchanged", () => {

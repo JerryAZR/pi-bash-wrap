@@ -1,7 +1,6 @@
 import { existsSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { homedir } from "node:os";
-import { SANDBOX_FAILURE_PATTERNS } from "./types.js";
 
 export function expandHome(p: string): string {
 	if (p.startsWith("~/")) return join(homedir(), p.slice(2));
@@ -34,10 +33,6 @@ export function getBwrapInstallHint(pm: ReturnType<typeof detectPackageManager>)
 		default:
 			return "Install bubblewrap via your package manager (package name is usually 'bubblewrap')";
 	}
-}
-
-export function looksLikeSandboxFailure(errorMessage: string): boolean {
-	return SANDBOX_FAILURE_PATTERNS.some((p) => p.test(errorMessage));
 }
 
 /** Truncate a long command for display. Keep first 10 + last 5 lines if > 16 lines. */

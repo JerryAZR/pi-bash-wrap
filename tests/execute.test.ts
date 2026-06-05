@@ -126,62 +126,8 @@ describe("executeWithFallback", () => {
 		);
 	});
 
-	it("retries without sandbox on sandbox failure when user approves", async () => {
-		const sandboxed = makeFailingExecuteFn(new Error("Read-only file system"));
-		const local = makeExecuteFn({ exitCode: 0 });
-		let promptCalled = false;
-		const ctx = makeCtx({
-			ui: {
-				confirm: async (title: string, _message: string) => {
-					promptCalled = true;
-					assert.strictEqual(title, "Sandbox failure");
-					return true;
-				},
-			},
-		});
-
-		const result = await executeWithFallback(
-			"tc5",
-			{ command: "some command" },
-			undefined,
-			() => {},
-			ctx,
-			makeConfig(),
-			sandboxed,
-			local,
-		);
-
-		assert.strictEqual(promptCalled, true);
-		assert.deepStrictEqual(result, { exitCode: 0 });
-	});
-
-	it("throws on sandbox failure when user denies retry", async () => {
+	it("throws sandbox errors directly without prompting", async () => {
 		const err = new Error("Read-only file system");
-		const sandboxed = makeFailingExecuteFn(err);
-		const local = makeExecuteFn({ exitCode: 0 });
-		const ctx = makeCtx({
-			ui: {
-				confirm: async () => false,
-			},
-		});
-
-		await assert.rejects(
-			executeWithFallback(
-				"tc6",
-				{ command: "some command" },
-				undefined,
-				() => {},
-				ctx,
-				makeConfig(),
-				sandboxed,
-				local,
-			),
-			/Read-only file system/,
-		);
-	});
-
-	it("throws non-sandbox errors without prompting", async () => {
-		const err = new Error("Some random error");
 		const sandboxed = makeFailingExecuteFn(err);
 		const local = makeExecuteFn({ exitCode: 0 });
 		let promptCalled = false;
@@ -196,7 +142,7 @@ describe("executeWithFallback", () => {
 
 		await assert.rejects(
 			executeWithFallback(
-				"tc7",
+				"tc5",
 				{ command: "some command" },
 				undefined,
 				() => {},
@@ -205,12 +151,12 @@ describe("executeWithFallback", () => {
 				sandboxed,
 				local,
 			),
-			/Some random error/,
+			/Read-only file system/,
 		);
 		assert.strictEqual(promptCalled, false);
 	});
 
-	it("throws timeout errors without prompting", async () => {
+	it("throws timeout errors directly without prompting", async () => {
 		const err = new Error("Command timed out after 5 seconds");
 		const sandboxed = makeFailingExecuteFn(err);
 		const local = makeExecuteFn({ exitCode: 0 });
@@ -226,7 +172,7 @@ describe("executeWithFallback", () => {
 
 		await assert.rejects(
 			executeWithFallback(
-				"tc8",
+				"tc6",
 				{ command: "some command" },
 				undefined,
 				() => {},
