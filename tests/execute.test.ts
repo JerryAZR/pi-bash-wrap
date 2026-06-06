@@ -19,9 +19,7 @@ function makeConfig(overrides: Partial<BwrapConfig> = {}): BwrapConfig {
 function makeCtx(overrides: Partial<ToolExecuteContext> = {}): ToolExecuteContext {
 	return {
 		hasUI: true,
-		ui: {
-			confirm: async () => true,
-		},
+		ui: { confirm: async () => true },
 		...overrides,
 	};
 }
@@ -184,5 +182,42 @@ describe("executeWithFallback", () => {
 			/Command timed out/,
 		);
 		assert.strictEqual(promptCalled, false);
+	});
+
+	it("serializes concurrent unsandboxed prompts so all complete", async () => {
+		let activePrompts = 0;
+		let maxConcurrent = 0;
+		const sandboxed = makeExecuteFn({ exitCode: 0 });
+		const local = makeExecuteFn({ exitCode: 42 });
+		const ctx = makeCtx({
+			ui: {
+				confirm: async (_title: string, _message: string) => {
+					activePrompts++;
+					if (activePrompts > maxConcurrent) maxConcurrent = activePrompts;
+					await new Promise((r) => setTimeout(r, 20));
+					activePrompts--;
+					return true;
+				},
+			},
+		});
+
+		const promises = Array.from({ length: 5 }, (_, i) =>
+			executeWithFallback(
+				`conc-${i}`,
+				{ command: `echo ${i}`, unsandboxed: true },
+				undefined,
+				() => {},
+				ctx,
+				makeConfig(),
+				sandboxed,
+				local,
+			),
+		);
+
+		const results = await Promise.all(promises);
+		assert.strictEqual(results.length, 5);
+		results.forEach((r) => assert.deepStrictEqual(r, { exitCode: 42 }));
+		assert.strictEqual(maxConcurrent, 1, "Only one prompt should be active at a time");
+		assert.strictEqual(activePrompts, 0, "All prompts should have completed");
 	});
 });

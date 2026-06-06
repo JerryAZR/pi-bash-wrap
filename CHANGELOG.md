@@ -1,6 +1,22 @@
 # Changelog
 
+## 0.1.4
+
+### Fixed
+- **Concurrent prompt serialization**: Added `withUILock` to serialize `ctx.ui.confirm()` calls. Previously, when multiple unsandboxed bash calls fired simultaneously, only the last prompt was shown and earlier ones hung forever.
+- **`/tmp` bind-mount**: Changed `--tmpfs /tmp` to `--bind /tmp /tmp` so files written to `/tmp` inside the sandbox persist and are visible on the host. Previously each command got an isolated tmpfs that vanished on exit.
+
 ## 0.1.3
+
+### Added
+- `license`, `author`, `engines`, and `publishConfig` fields to `package.json`.
+- `prepublishOnly` script to ensure `dist/` is built before publishing.
+
+### Removed
+- **Dead reference file**: Removed `src/vanilla-bash-reference.js` (no longer needed).
+
+### Fixed
+- **README path**: Fixed stale `pi-bwrap-bash` reference in local-load example.
 
 ### Removed
 - **Automatic sandbox-failure prompt**: Removed the regex-based detection (`looksLikeSandboxFailure`) and the automatic "Retry without sandbox?" prompt that fired after sandbox errors. This detection was unreliable (e.g., false positives on `npm test` failures). The agent is the better judge — it can now use the explicit `unsandboxed: true` parameter when it determines a command needs to run outside the sandbox.

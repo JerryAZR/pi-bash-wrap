@@ -1,4 +1,5 @@
 import { truncateCommandForDisplay } from "./utils.js";
+import { withUILock } from "./ui-lock.js";
 import type { BwrapConfig } from "./types.js";
 
 export interface ToolExecuteContext {
@@ -36,9 +37,11 @@ export async function executeWithFallback(
 	if (params.unsandboxed) {
 		if (config.promptOnFailure && ctx.hasUI) {
 			const truncatedCmd = truncateCommandForDisplay(params.command);
-			const ok = await ctx.ui.confirm(
-				"Run outside sandbox",
-				`The agent wants to run this command outside the sandbox:\n\n$ ${truncatedCmd}\n\nAllow?`,
+			const ok = await withUILock(() =>
+				ctx.ui.confirm(
+					"Run outside sandbox",
+					`The agent wants to run this command outside the sandbox:\n\n$ ${truncatedCmd}\n\nAllow?`,
+				),
 			);
 			if (!ok) {
 				throw new Error("User denied unsandboxed execution");

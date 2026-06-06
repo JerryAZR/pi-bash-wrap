@@ -64,7 +64,8 @@ export function buildBwrapArgs(
 		"--bind",
 		cwd,
 		cwd,
-		"--tmpfs",
+		"--bind",
+		"/tmp",
 		"/tmp",
 	];
 

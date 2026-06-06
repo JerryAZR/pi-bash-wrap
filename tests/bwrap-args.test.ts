@@ -46,7 +46,6 @@ describe("buildBwrapArgs", () => {
 		assert.ok(args.includes("--proc"));
 		assert.ok(args.includes("/proc"));
 		assert.ok(args.includes("--bind"));
-		assert.ok(args.includes("--tmpfs"));
 		assert.ok(args.includes("/tmp"));
 	});
 

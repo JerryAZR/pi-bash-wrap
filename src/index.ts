@@ -20,6 +20,7 @@ import {
 	getBwrapInstallHint,
 	isPathOutsideCwd,
 } from "./utils.js";
+import { withUILock } from "./ui-lock.js";
 import { tmpdir } from "node:os";
 
 export default function (pi: ExtensionAPI) {
@@ -131,9 +132,11 @@ export default function (pi: ExtensionAPI) {
 				return { block: true, reason: `Write outside working directory blocked: ${targetPath}` };
 			}
 
-			const ok = await toolCtx.ui.confirm(
-				"Write outside cwd",
-				`Tool "${event.toolName}" wants to write to:\n${targetPath}\n\nAllow?`
+			const ok = await withUILock(() =>
+				toolCtx.ui.confirm(
+					"Write outside cwd",
+					`Tool "${event.toolName}" wants to write to:\n${targetPath}\n\nAllow?`,
+				),
 			);
 
 			if (!ok) {
