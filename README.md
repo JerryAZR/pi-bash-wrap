@@ -11,7 +11,7 @@ pi install npm:@jerryan/pi-bash-wrap
 Or load locally:
 
 ```bash
-pi -e /path/to/pi-bwrap-bash/dist/index.js
+pi -e /path/to/pi-bash-wrap/dist/index.js
 ```
 
 ## Requirements
