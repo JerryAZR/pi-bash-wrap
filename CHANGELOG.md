@@ -27,7 +27,7 @@
 - **Dead reference file**: Removed `src/vanilla-bash-reference.js` (no longer needed).
 
 ### Fixed
-- **README path**: Fixed stale `pi-bwrap-bash` reference in local-load example.
+- **README path**: Fixed stale `pi-bash-wrap` reference in local-load example.
 
 ### Removed
 - **Automatic sandbox-failure prompt**: Removed the regex-based detection (`looksLikeSandboxFailure`) and the automatic "Retry without sandbox?" prompt that fired after sandbox errors. This detection was unreliable (e.g., false positives on `npm test` failures). The agent is the better judge — it can now use the explicit `unsandboxed: true` parameter when it determines a command needs to run outside the sandbox.

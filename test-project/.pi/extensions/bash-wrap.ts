@@ -1,5 +1,5 @@
 /**
- * pi-bwrap-bash — sandbox pi bash commands with bubblewrap
+ * pi-bash-wrap — sandbox pi bash commands with bubblewrap
  *
  * Replaces the built-in bash tool so LLM-invoked commands run inside bwrap.
  * User-initiated !commands are NOT sandboxed.
@@ -65,10 +65,10 @@ export default function (pi: ExtensionAPI) {
 			const netText = config.internet === "allow" ? "bwrap: protection on 🛜" : "bwrap: protection on";
 			if (active) {
 				ctx.ui.setStatus("bwrap", ctx.ui.theme.fg("accent", netText));
-				ctx.ui.notify(`bwrap-bash: ${netText}`, "info");
+				ctx.ui.notify(`bash-wrap: ${netText}`, "info");
 			} else {
 				ctx.ui.setStatus("bwrap", ctx.ui.theme.fg("muted", "bwrap: off"));
-				ctx.ui.notify("bwrap-bash: protection off", "info");
+				ctx.ui.notify("bash-wrap: protection off", "info");
 			}
 		},
 	});
@@ -79,7 +79,7 @@ export default function (pi: ExtensionAPI) {
 		if (noBwrap) {
 			active = false;
 			ctx.ui.setStatus("bwrap", ctx.ui.theme.fg("muted", "bwrap: off"));
-			ctx.ui.notify("bwrap-bash: disabled via --no-bwrap", "info");
+			ctx.ui.notify("bash-wrap: disabled via --no-bwrap", "info");
 			return;
 		}
 
@@ -88,14 +88,14 @@ export default function (pi: ExtensionAPI) {
 		if (!config.enabled) {
 			active = false;
 			ctx.ui.setStatus("bwrap", ctx.ui.theme.fg("muted", "bwrap: off"));
-			ctx.ui.notify("bwrap-bash: disabled in config", "info");
+			ctx.ui.notify("bash-wrap: disabled in config", "info");
 			return;
 		}
 
 		if (process.platform !== "linux") {
 			active = false;
 			ctx.ui.setStatus("bwrap", ctx.ui.theme.fg("muted", "bwrap: unsupported"));
-			ctx.ui.notify(`bwrap-bash: unsupported on ${process.platform}`, "warning");
+			ctx.ui.notify(`bash-wrap: unsupported on ${process.platform}`, "warning");
 			return;
 		}
 
@@ -106,14 +106,14 @@ export default function (pi: ExtensionAPI) {
 			const pm = detectPackageManager();
 			const hint = getBwrapInstallHint(pm);
 			ctx.ui.setStatus("bwrap", ctx.ui.theme.fg("warning", "bwrap: missing"));
-			ctx.ui.notify(`bwrap-bash: bubblewrap not found. Install with: ${hint}`, "warning");
+			ctx.ui.notify(`bash-wrap: bubblewrap not found. Install with: ${hint}`, "warning");
 			return;
 		}
 
 		if (!testBwrap(bwrapPath)) {
 			active = false;
 			ctx.ui.setStatus("bwrap", ctx.ui.theme.fg("warning", "bwrap: incompatible"));
-			ctx.ui.notify("bwrap-bash: bubblewrap installed but user namespaces are blocked. Sandbox disabled.", "warning");
+			ctx.ui.notify("bash-wrap: bubblewrap installed but user namespaces are blocked. Sandbox disabled.", "warning");
 			return;
 		}
 
@@ -237,6 +237,6 @@ export default function (pi: ExtensionAPI) {
 		if (!userToggled) active = true;
 		const netText = config.internet === "allow" ? "bwrap: protection on 🛜" : "bwrap: protection on";
 		ctx.ui.setStatus("bwrap", ctx.ui.theme.fg("accent", netText));
-		ctx.ui.notify(`bwrap-bash: ${netText}`, "info");
+		ctx.ui.notify(`bash-wrap: ${netText}`, "info");
 	});
 }

@@ -1,4 +1,4 @@
-# Test Project for pi-bwrap-bash
+# Test Project for pi-bash-wrap
 
 This is a minimal project for testing the bubblewrap sandbox extension.
 
@@ -9,10 +9,10 @@ This is a minimal project for testing the bubblewrap sandbox extension.
 cd test-project
 
 # Copy the extension into this project's .pi/extensions/
-cp ../src/index.ts .pi/extensions/bwrap-bash.ts
+cp ../src/index.ts .pi/extensions/bash-wrap.ts
 
 # Run pi with the extension
-pi -e .pi/extensions/bwrap-bash.ts
+pi -e .pi/extensions/bash-wrap.ts
 ```
 
 ## What to test
