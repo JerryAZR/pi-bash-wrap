@@ -121,7 +121,7 @@ A footer indicator shows the sandbox state:
 |-------|-------------|
 | Active, network allowed | `bwrap: protection on 🛜` |
 | Active, network blocked | `bwrap: protection on` |
-| Disabled (`--no-bwrap` or config) | `bwrap: off` |
+| Disabled (`/bwrap off`, `--no-bwrap`, or config) | `bwrap: off` |
 | bwrap binary missing | `bwrap: missing` |
 | bwrap installed but user namespaces blocked | `bwrap: incompatible` |
 | Unsupported OS | `bwrap: unsupported` |
@@ -130,11 +130,19 @@ A footer indicator shows the sandbox state:
 
 ### `/bwrap`
 
-Type `/bwrap` in the pi prompt to see current status, the detected bwrap binary path, and the resolved configuration.
+Toggle sandbox protection during the session:
+
+```
+/bwrap       # toggle on/off
+/bwrap on    # enable protection
+/bwrap off   # disable protection
+```
+
+When protection is off, all `bash` tool calls run outside the sandbox until you toggle it back on. Write-tool gating (`write`/`edit` outside cwd) remains active regardless of the toggle.
 
 ### `--no-bwrap`
 
-Disable sandboxing for the session:
+Disable sandboxing at startup for the entire session:
 
 ```bash
 pi --no-bwrap
@@ -181,6 +189,8 @@ The bash tool accepts an optional `unsandboxed: true` parameter to run a command
 Do NOT use `unsandboxed` for ordinary commands — the sandbox is the default for a reason.
 
 If `promptOnFailure` is enabled, the user is prompted for confirmation before the unsandboxed execution proceeds.
+
+The extension also auto-detects common container commands (`docker`, `podman`, `buildah`, `nerdctl`) when the agent forgets to set `unsandboxed: true`. This is conservative: it only matches the first command token (after common wrappers like `sudo` or `env`), and the user is always prompted. If detection misses a command, the agent can still retry with explicit `unsandboxed: true`.
 ## Mount order
 
 Bubblewrap processes arguments sequentially; later mounts override earlier ones. The extension uses this order:
@@ -192,7 +202,7 @@ Bubblewrap processes arguments sequentially; later mounts override earlier ones.
 --dev /dev         # overrides /dev
 --proc /proc       # overrides /proc
 --bind <cwd> <cwd> # overrides cwd
---tmpfs /tmp       # overrides /tmp
+--bind /tmp /tmp     # share host /tmp (files persist)
 ```
 
 ## Limitations

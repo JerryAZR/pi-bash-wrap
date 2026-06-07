@@ -19,6 +19,7 @@ import {
 	detectPackageManager,
 	getBwrapInstallHint,
 	isPathOutsideCwd,
+	looksLikeContainerCommand,
 	truncateCommandForDisplay,
 } from "./utils.js";
 import { tmpdir } from "node:os";
@@ -26,6 +27,7 @@ import { tmpdir } from "node:os";
 export default function (pi: ExtensionAPI) {
 	const cwd = process.cwd();
 	let active = false;
+	let userToggled = false;
 
 	pi.registerFlag("no-bwrap", {
 		description: "Disable bubblewrap sandboxing for bash commands",
@@ -34,40 +36,40 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("bwrap", {
-		description: "Show bubblewrap sandbox status",
-		handler: async (_args, ctx) => {
-			const lines: string[] = ["Bubblewrap Sandbox Status", ""];
-
+		description: "Toggle bubblewrap sandbox protection (/bwrap, /bwrap on, /bwrap off)",
+		handler: async (args, ctx) => {
 			if (process.platform !== "linux") {
-				lines.push(`Status: unsupported OS (${process.platform})`);
-			} else {
-				const bwrapPath = findBwrap();
-				if (!bwrapPath) {
-					lines.push("Status: bwrap not found");
-					const pm = detectPackageManager();
-					lines.push(`Install: ${getBwrapInstallHint(pm)}`);
-				} else if (!testBwrap(bwrapPath)) {
-					lines.push("Status: incompatible (user namespaces blocked)");
-					lines.push(`Binary: ${bwrapPath}`);
-				} else if (!active) {
-					lines.push("Status: disabled");
-				} else {
-					lines.push("Status: active");
-					lines.push(`Binary: ${bwrapPath}`);
-				}
+				ctx.ui.notify(`bwrap: unsupported on ${process.platform}`, "warning");
+				return;
+			}
+
+			const bwrapPath = findBwrap();
+			if (!bwrapPath) {
+				const pm = detectPackageManager();
+				ctx.ui.notify(`bwrap: missing. Install with: ${getBwrapInstallHint(pm)}`, "warning");
+				return;
+			}
+
+			if (!testBwrap(bwrapPath)) {
+				ctx.ui.notify("bwrap: incompatible (user namespaces blocked)", "warning");
+				return;
 			}
 
 			const config = await loadConfig(ctx.cwd);
-			lines.push("");
-			lines.push(`Enabled: ${config.enabled}`);
-			lines.push(`Internet: ${config.internet}`);
-			lines.push(`Prompt on failure: ${config.promptOnFailure}`);
-			lines.push(`Extra read paths: ${config.extraReadPaths.join(", ") || "(none)"}`);
-			lines.push(`Extra write paths: ${config.extraWritePaths.join(", ") || "(none)"}`);
-			lines.push(`Write tools: ${Object.entries(config.writeTools).map(([k, v]) => `${k}(${v})`).join(", ") || "(none)"}`);
-			lines.push(`Timeout: ${config.timeout}s`);
+			const arg = args.trim().split(/\s+/)[0];
 
-			ctx.ui.notify(lines.join("\n"), "info");
+			if (arg === "on") { active = true; userToggled = true; }
+			else if (arg === "off") { active = false; userToggled = true; }
+			else { active = !active; userToggled = true; }
+
+			const netText = config.internet === "allow" ? "bwrap: protection on 🛜" : "bwrap: protection on";
+			if (active) {
+				ctx.ui.setStatus("bwrap", ctx.ui.theme.fg("accent", netText));
+				ctx.ui.notify(`bwrap-bash: ${netText}`, "info");
+			} else {
+				ctx.ui.setStatus("bwrap", ctx.ui.theme.fg("muted", "bwrap: off"));
+				ctx.ui.notify("bwrap-bash: protection off", "info");
+			}
 		},
 	});
 
@@ -120,19 +122,42 @@ export default function (pi: ExtensionAPI) {
 		pi.on("tool_call", async (event, toolCtx) => {
 			// Gate unsandboxed bash requests
 			if (event.toolName === "bash") {
+				// When sandbox is toggled off, run everything locally without prompting
+				if (!active) return;
+
 				const input = event.input as Record<string, unknown>;
-				if (input.unsandboxed === true) {
+				const commandStr = String(input.command ?? "");
+
+				// Auto-detect likely container commands if agent didn't request unsandboxed
+				const explicitlyUnsandboxed = input.unsandboxed === true;
+				const autoDetected = !explicitlyUnsandboxed && looksLikeContainerCommand(commandStr);
+				const needsPrompt = explicitlyUnsandboxed || autoDetected;
+
+				if (needsPrompt) {
 					if (!config.promptOnFailure || !toolCtx.hasUI) {
-						return { block: true, reason: "Unsandboxed bash execution blocked" };
+						if (explicitlyUnsandboxed) {
+							return { block: true, reason: "Unsandboxed bash execution blocked" };
+						}
+						// Auto-detected but no UI: proceed sandboxed and let it fail naturally
+						return;
 					}
-					const truncatedCmd = truncateCommandForDisplay(String(input.command ?? ""));
-					const ok = await toolCtx.ui.confirm(
-						"Run outside sandbox",
-						`The agent wants to run this command outside the sandbox:\n\n$ ${truncatedCmd}\n\nAllow?`,
-					);
+
+					const truncatedCmd = truncateCommandForDisplay(commandStr);
+					const title = autoDetected ? "Run container command outside sandbox?" : "Run outside sandbox";
+					const message = autoDetected
+						? `This looks like a container command that may fail inside the sandbox:\n\n$ ${truncatedCmd}\n\nRun outside sandbox?`
+						: `The agent wants to run this command outside the sandbox:\n\n$ ${truncatedCmd}\n\nAllow?`;
+
+					const ok = await toolCtx.ui.confirm(title, message);
 					if (!ok) {
-						return { block: true, reason: "User denied unsandboxed execution" };
+						if (explicitlyUnsandboxed) {
+							return { block: true, reason: "User denied unsandboxed execution" };
+						}
+						// Auto-detected but denied: proceed sandboxed (user chose to try anyway)
+						return;
 					}
+					// Approved: route to unsandboxed execution
+					input.unsandboxed = true;
 				}
 				return;
 			}
@@ -193,6 +218,10 @@ export default function (pi: ExtensionAPI) {
 				"or when retrying a command that failed with sandbox errors like 'Read-only file system' or 'Permission denied'. " +
 				"Do NOT use `unsandboxed` for ordinary commands.",
 			async execute(toolCallId, params, signal, onUpdate, ctx) {
+				// If toggled off, run outside sandbox regardless of params
+				if (!active) {
+					return localDef.execute(toolCallId, params, signal, onUpdate, ctx);
+				}
 				return executeWithFallback(
 					toolCallId,
 					params as { command: string; timeout?: number; unsandboxed?: boolean },
@@ -205,7 +234,7 @@ export default function (pi: ExtensionAPI) {
 			},
 		});
 
-		active = true;
+		if (!userToggled) active = true;
 		const netText = config.internet === "allow" ? "bwrap: protection on 🛜" : "bwrap: protection on";
 		ctx.ui.setStatus("bwrap", ctx.ui.theme.fg("accent", netText));
 		ctx.ui.notify(`bwrap-bash: ${netText}`, "info");

@@ -2,12 +2,15 @@
 
 ## 0.1.5
 
+### Added
+- **`/bwrap` toggle**: The `/bwrap` command is now an in-memory toggle instead of a static status display. Use `/bwrap`, `/bwrap on`, or `/bwrap off` to enable or disable bash sandboxing during the session. Write-tool gating remains active regardless of the toggle.
+- **Auto-detection for container commands**: If the agent runs a bash command that starts with `docker`, `podman`, `buildah`, or `nerdctl` (after common wrappers like `sudo` or `env`) without setting `unsandboxed: true`, the extension now prompts the user to run it outside the sandbox. This is conservative — false positives are avoided by only matching the first command token, and false negatives are harmless because the agent can still use explicit `unsandboxed: true`.
+
 ### Changed
 - **Moved unsandboxed confirmation to `tool_call` handler**: The confirmation prompt for `unsandboxed: true` bash requests now happens during the framework's sequential `prepareToolCall` phase instead of inside the parallel `execute()` phase. This eliminates the concurrent-prompt deadlock risk without needing a custom async lock.
 
 ### Removed
 - **`withUILock` / `src/ui-lock.ts`**: No longer needed because the prompt is shown in the sequential phase. Removed module, import, and tests.
-
 ## 0.1.4
 
 ### Fixed

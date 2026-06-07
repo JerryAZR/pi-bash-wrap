@@ -50,3 +50,46 @@ export function isPathOutsideCwd(targetPath: string, cwd: string): boolean {
 	const rel = relative(cwd, resolvedTarget);
 	return rel.startsWith("..");
 }
+
+const CONTAINER_TOOLS = new Set(["docker", "podman", "buildah", "nerdctl"]);
+const WRAPPER_COMMANDS = new Set(["sudo", "env", "exec", "nohup", "time"]);
+
+/**
+ * Conservative pre-flight check for commands that likely require unsandboxed access.
+ * Only matches when the first real command token (after env vars and common wrappers)
+ * is exactly docker, podman, buildah, or nerdctl. False negatives are acceptable.
+ */
+export function looksLikeContainerCommand(cmd: string): boolean {
+	const trimmed = cmd.trim();
+	if (!trimmed) return false;
+
+	const tokens: string[] = [];
+	let current = "";
+	let inQuote: "'" | '"' | null = null;
+
+	for (let i = 0; i < trimmed.length; i++) {
+		const ch = trimmed[i];
+		if (inQuote) {
+			if (ch === inQuote) inQuote = null;
+			else current += ch;
+		} else if (ch === '"' || ch === "'") {
+			inQuote = ch;
+		} else if (/\s/.test(ch)) {
+			if (current.length > 0) {
+				tokens.push(current);
+				current = "";
+			}
+		} else {
+			current += ch;
+		}
+	}
+	if (current.length > 0) tokens.push(current);
+
+	for (const token of tokens) {
+		if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(token)) continue;
+		if (WRAPPER_COMMANDS.has(token)) continue;
+		const basename = token.replace(/\\/g, "/").split("/").pop() ?? token;
+		return CONTAINER_TOOLS.has(basename);
+	}
+	return false;
+}

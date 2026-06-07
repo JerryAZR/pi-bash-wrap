@@ -6,6 +6,7 @@ import {
 	getBwrapInstallHint,
 	truncateCommandForDisplay,
 	isPathOutsideCwd,
+	looksLikeContainerCommand,
 } from "../src/utils.js";
 import { homedir } from "node:os";
 
@@ -109,5 +110,44 @@ describe("isPathOutsideCwd", () => {
 
 	it("does not falsely match prefix", () => {
 		assert.equal(isPathOutsideCwd("/home/user/projects", "/home/user/project"), true);
+	});
+});
+
+describe("looksLikeContainerCommand", () => {
+	it("matches plain container commands", () => {
+		assert.equal(looksLikeContainerCommand("docker run hello-world"), true);
+		assert.equal(looksLikeContainerCommand("podman ps"), true);
+		assert.equal(looksLikeContainerCommand("buildah bud -t foo ."), true);
+		assert.equal(looksLikeContainerCommand("nerdctl images"), true);
+	});
+
+	it("matches with env vars and wrappers", () => {
+		assert.equal(looksLikeContainerCommand("DOCKER_HOST=tcp://... docker ps"), true);
+		assert.equal(looksLikeContainerCommand("sudo docker run -it alpine"), true);
+		assert.equal(looksLikeContainerCommand("env FOO=bar podman version"), true);
+		assert.equal(looksLikeContainerCommand("time nerdctl pull alpine"), true);
+	});
+
+	it("matches absolute and relative paths", () => {
+		assert.equal(looksLikeContainerCommand("/usr/bin/docker ps"), true);
+		assert.equal(looksLikeContainerCommand("./podman run foo"), true);
+		assert.equal(looksLikeContainerCommand("/home/user/bin/buildah"), true);
+	});
+
+	it("does not match container tools in strings or later positions", () => {
+		assert.equal(looksLikeContainerCommand('echo "docker run hello"'), false);
+		assert.equal(looksLikeContainerCommand("cat file | grep docker"), false);
+		assert.equal(looksLikeContainerCommand("npm run docker-build"), false);
+	});
+
+	it("does not match ordinary commands", () => {
+		assert.equal(looksLikeContainerCommand("ls -la"), false);
+		assert.equal(looksLikeContainerCommand("npm install"), false);
+		assert.equal(looksLikeContainerCommand("python script.py"), false);
+	});
+
+	it("handles empty or whitespace input", () => {
+		assert.equal(looksLikeContainerCommand(""), false);
+		assert.equal(looksLikeContainerCommand("   "), false);
 	});
 });
