@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.5
+
+### Changed
+- **Moved unsandboxed confirmation to `tool_call` handler**: The confirmation prompt for `unsandboxed: true` bash requests now happens during the framework's sequential `prepareToolCall` phase instead of inside the parallel `execute()` phase. This eliminates the concurrent-prompt deadlock risk without needing a custom async lock.
+
+### Removed
+- **`withUILock` / `src/ui-lock.ts`**: No longer needed because the prompt is shown in the sequential phase. Removed module, import, and tests.
+
 ## 0.1.4
 
 ### Fixed

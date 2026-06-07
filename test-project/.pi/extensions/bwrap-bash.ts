@@ -19,6 +19,7 @@ import {
 	detectPackageManager,
 	getBwrapInstallHint,
 	isPathOutsideCwd,
+	truncateCommandForDisplay,
 } from "./utils.js";
 import { tmpdir } from "node:os";
 
@@ -115,7 +116,28 @@ export default function (pi: ExtensionAPI) {
 		}
 
 		// Register write-tool gate
+		// Register tool-call gates
 		pi.on("tool_call", async (event, toolCtx) => {
+			// Gate unsandboxed bash requests
+			if (event.toolName === "bash") {
+				const input = event.input as Record<string, unknown>;
+				if (input.unsandboxed === true) {
+					if (!config.promptOnFailure || !toolCtx.hasUI) {
+						return { block: true, reason: "Unsandboxed bash execution blocked" };
+					}
+					const truncatedCmd = truncateCommandForDisplay(String(input.command ?? ""));
+					const ok = await toolCtx.ui.confirm(
+						"Run outside sandbox",
+						`The agent wants to run this command outside the sandbox:\n\n$ ${truncatedCmd}\n\nAllow?`,
+					);
+					if (!ok) {
+						return { block: true, reason: "User denied unsandboxed execution" };
+					}
+				}
+				return;
+			}
+
+			// Gate write/edit tools outside cwd
 			const pathArgName = config.writeTools[event.toolName];
 			if (!pathArgName) return;
 
@@ -133,7 +155,7 @@ export default function (pi: ExtensionAPI) {
 
 			const ok = await toolCtx.ui.confirm(
 				"Write outside cwd",
-				`Tool "${event.toolName}" wants to write to:\n${targetPath}\n\nAllow?`
+				`Tool "${event.toolName}" wants to write to:\n${targetPath}\n\nAllow?`,
 			);
 
 			if (!ok) {
@@ -176,8 +198,7 @@ export default function (pi: ExtensionAPI) {
 					params as { command: string; timeout?: number; unsandboxed?: boolean },
 					signal,
 					onUpdate,
-					{ hasUI: ctx.hasUI, ui: ctx.ui },
-					config,
+					ctx,
 					bwrapDef.execute.bind(bwrapDef),
 					localDef.execute.bind(localDef),
 				);
