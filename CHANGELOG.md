@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.6
+
+### Changed
+- **Consistent naming**: All internal references to the old `bwrap-bash` name have been replaced with `bash-wrap` (project name) or `bwrap` (sandbox binary). This affects notification messages, the source file header, test project files, and changelog entries.
+
 ## 0.1.5
 
 ### Added
